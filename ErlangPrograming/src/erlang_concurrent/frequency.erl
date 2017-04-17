@@ -10,11 +10,12 @@
 -author("fmartinez").
 
 %% API
--export([start/0,init/0,allocate/0,deallocate/1,stop/0]).
+%-export([start/0]).
+-export([init/0,allocate/0,deallocate/1,stop/0]).
 
-%% Registering the process.
-start() ->
-  register(frequency, spawn(frequency, init,[])).
+%% Registering the process, function was comment because the supervisor process make this.
+%start() ->
+  %register(frequency, spawn(frequency, init,[])).
 
 %% Init frequency loop.
 init() ->
@@ -39,6 +40,7 @@ loop(Frequencies) ->
       Pid ! {reply, Reply},
       loop(NewFrequencies);
     {'EXIT', Pid, _Reason} ->
+      %timer:sleep(10000),
       NewFrequencies = exited(Frequencies, Pid),
       loop(NewFrequencies);
     {request, Pid, stop} ->
