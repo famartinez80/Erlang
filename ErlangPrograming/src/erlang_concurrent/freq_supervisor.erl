@@ -14,12 +14,21 @@
 
 %%Register the supervisor process
 start() ->
-  register(supervisor, spawn(freq_supervisor, init,[])).
+  try register(supervisor, spawn(freq_supervisor, init,[])) of
+    true ->
+      {ok, true}
+  catch
+    error: _ ->
+      {error, process_or_port_is_already_registered}
+  end.
 
 %%Create and register frequency server
 init() ->
   process_flag(trap_exit,true),
-  register(frequency, spawn_link(frequency, init,[])),
+  case whereis(frequency) of
+    undefined -> register(frequency, spawn_link(frequency, init,[]));
+    Pid -> link(Pid)
+  end,
   loop().
 
 %%Main loop to check if the frequency server is alive
