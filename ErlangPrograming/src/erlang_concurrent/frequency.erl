@@ -11,20 +11,20 @@
 
 %% API
 %-export([start/0]).
--export([init/0,allocate/0,deallocate/1,stop/0]).
+-export([init/1]).
 
 %% Registering the process, function was comment because the supervisor process make this.
 %start() ->
   %register(frequency, spawn(frequency, init,[])).
 
 %% Init frequency loop.
-init() ->
+init(Frequencies) ->
   process_flag(trap_exit,true),
-  Frequencies = {get_frequencies(), []},
-  loop(Frequencies).
+  %%Frequencies = {get_frequencies(), []},
+  loop({Frequencies, []}).
 
 %Hard Coded
-get_frequencies() -> [10,11,12,13,14,15].
+%%get_frequencies() -> [10,11,12,13,14,15].
 
 %% The Main Loop
 loop(Frequencies) ->
@@ -39,6 +39,11 @@ loop(Frequencies) ->
       {NewFrequencies, Reply} = deallocate(Frequencies, Freq, Pid),
       Pid ! {reply, Reply},
       loop(NewFrequencies);
+    {request, Pid ,{inject, Freqs}} ->
+      %timer:sleep(10000),
+      {NewFrequencies, Reply} = inject(Frequencies, Freqs),
+      Pid ! {reply, Reply},
+      loop(NewFrequencies);
     {'EXIT', Pid, _Reason} ->
       %timer:sleep(10000),
       NewFrequencies = exited(Frequencies, Pid),
@@ -48,44 +53,7 @@ loop(Frequencies) ->
       Pid ! {reply, stopped}
   end.
 
-%% Functional interface
-allocate() ->
-  Log = clear([]),
-  frequency ! {request, self(), allocate},
-  receive
-    {reply, Reply} -> {Reply,Log}
-  after 1000 ->
-    {error, timeout, Log}
-  end.
-
-deallocate(Freq) ->
-  Log = clear([]),
-  frequency ! {request, self(), {deallocate, Freq}},
-  receive
-    {reply, Reply} -> {Reply,Log}
-  after 1000 ->
-    {error, timeout, Log}
-  end.
-
-stop() ->
-  Log = clear([]),
-  frequency ! {request, self(), stop},
-  receive
-    {reply, Reply} -> {Reply,Log}
-  after 1000 ->
-    {error, timeout, Log}
-  end.
-
-%% Clear MailBox and logging
-clear(Logging) ->
-  receive
-    _Msg ->
-      clear(Logging ++ [_Msg])
-  after 0 -> {mailbox_log_warnign, Logging}
-  end.
-
-%% The Internal Help Functions used to allocate and
-%% deallocate frequencies.
+%% The Internal Help Functions used to allocate and deallocate frequencies.
 allocate({[], Allocated}, _Pid) ->
   {{[],Allocated}, {error, no_frequency}};
 
@@ -119,3 +87,9 @@ exited({Free,Allocated}, Pid) ->
       false ->
         {Free,Allocated}
     end.
+
+inject({Free,Allocated},[])->
+  {{Free,Allocated}, {ok}};
+
+inject({Free,Allocated},Freqs)->
+  {{Free ++ Freqs,Allocated}, {ok}}.
